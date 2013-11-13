@@ -13,6 +13,7 @@ import weka.core.Attribute;
 import weka.core.FastVector;
 import weka.core.Instance;
 import weka.core.Instances;
+import weka.core.converters.ArffSaver;
 
 public class Main {
 	
@@ -44,62 +45,74 @@ public class Main {
 		File tsp = new File("./data/" + problem + "/");
 		FileFilter filter = new TSPInstanceFilter();
 		for(File file: tsp.listFiles(filter)) {
-			TSPInstance instance = new TSPInstance(file);
-			for(File solution: tsp.listFiles(new TSPSolutionFilter(file.getName().substring(0, file.getName().indexOf('.'))))) {
-				instance.addTour(solution);
-			}
-			DistanceTable table = instance.getDistanceTable();
-			
-			// Create entry
-			Instance row = new Instance(atts.size());
-			row.setDataset(dataset);
-			String name = instance.getName();
-			System.out.print(name);
-			row.setValue(0, name);
-			int nodeTotal = table.listNodes().length;
-			row.setValue(1, nodeTotal);
-			int edgeTotal = getEdgeCount(table);
-			row.setValue(2, edgeTotal);
-			System.out.print('.');
-			double neighborAverage = getNeighborAverage(table);
-			double edgeAverage = getEdgeAverage(table);
-			double stdDevNeighbor = 0, stdDevEdge = 0;
-			int[] nodes = table.listNodes();
-			for (int node: nodes)
-			{
-				int[] neighbors = table.getNeighborsOf(node);
-				stdDevNeighbor += Math.pow(neighbors.length - neighborAverage, 2);
+			try {
+				TSPInstance instance = new TSPInstance(file);
+				for(File solution: tsp.listFiles(new TSPSolutionFilter(file.getName().substring(0, file.getName().indexOf('.'))))) {
+					instance.addTour(solution);
+				}
+				DistanceTable table = instance.getDistanceTable();
 				
-				double sum = 0;
-				for(int neighbor: nodes) sum += table.getDistanceBetween(node, neighbor);
-				stdDevEdge += Math.pow(sum - edgeAverage, 2);
+				// Create entry
+				Instance row = new Instance(atts.size());
+				row.setDataset(dataset);
+				String name = instance.getName();
+				System.out.print(name);
+				row.setValue(0, name);
+				int nodeTotal = table.listNodes().length;
+				row.setValue(1, nodeTotal);
+				int edgeTotal = getEdgeCount(table);
+				row.setValue(2, edgeTotal);
+				System.out.print('.');
+				double neighborAverage = getNeighborAverage(table);
+				double edgeAverage = getEdgeAverage(table);
+				double stdDevNeighbor = 0, stdDevEdge = 0;
+				int[] nodes = table.listNodes();
+				for (int node: nodes)
+				{
+					int[] neighbors = table.getNeighborsOf(node);
+					stdDevNeighbor += Math.pow(neighbors.length - neighborAverage, 2);
+					
+					double sum = 0;
+					for(int neighbor: nodes) sum += table.getDistanceBetween(node, neighbor);
+					stdDevEdge += Math.pow(sum - edgeAverage, 2);
+				}
+				row.setValue(3, stdDevNeighbor);
+				row.setValue(4, stdDevEdge);
+				row.setValue(5, 2 * edgeTotal / nodeTotal);
+	
+				System.out.print('.');
+				List<Tour> solutions = instance.getTours();
+				boolean haveSolution = solutions.size() > 0;
+				if(haveSolution) {
+					row.setValue(atts.size() - 2, solutions.size());
+					row.setValue(atts.size() - 1, solutions.get(0).distance(instance));
+				}
+				else {
+					row.setValue(atts.size() - 2, Instance.missingValue());
+					row.setValue(atts.size() - 1, Instance.missingValue());
+				}
+	
+				System.out.print('.');
+				for(int i = 6; i + 3 < atts.size(); i += 3) {
+					@SuppressWarnings("unused")
+					int index = (i - 6) / 3;// Index into algorithm
+					if(haveSolution);
+					else row.setValue(i + 2, Instance.missingValue());
+				}
+				dataset.add(row);
+				System.out.println("done");
 			}
-			row.setValue(3, stdDevNeighbor);
-			row.setValue(4, stdDevEdge);
-			row.setValue(5, 2 * edgeTotal / nodeTotal);
-
-			System.out.print('.');
-			List<Tour> solutions = instance.getTours();
-			boolean haveSolution = solutions.size() > 0;
-			if(haveSolution) {
-				row.setValue(atts.size() - 2, solutions.size());
-				row.setValue(atts.size() - 1, solutions.get(0).distance(instance));
-			}
-			else {
-				row.setValue(atts.size() - 2, Instance.missingValue());
-				row.setValue(atts.size() - 1, Instance.missingValue());
-			}
-
-			System.out.print('.');
-			for(int i = 6; i + 3 < atts.size(); i += 3) {
-				@SuppressWarnings("unused")
-				int index = (i - 6) / 3;// Index into algorithm
-				if(haveSolution);
-				else row.setValue(i + 2, Instance.missingValue());
-			}
-			dataset.add(row);
-			System.out.println("done");
+			catch(IllegalArgumentException e) { continue; }// In case of invalid formatting
 		}
+		
+		// Save the new data
+		ArffSaver saver = new ArffSaver();
+		saver.setInstances(dataset);
+		String destination = "output/TSP" + new Date() + ".arff";
+		File destFile = new File(destination);
+		saver.setFile(destFile);
+		//saver.setDestination(destFile);// **not** necessary in 3.5.4 and later
+		saver.writeBatch();
 		System.out.println("Complete");
 	}
 	
