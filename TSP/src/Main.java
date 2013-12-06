@@ -29,6 +29,7 @@ public class Main {
 		atts.addElement(new Attribute("StdDev Neighbors"));// Numeric
 		atts.addElement(new Attribute("StdDev Edges"));// Numeric
 		atts.addElement(new Attribute("Connectedness"));// Numeric
+		// TODO: Failed instances of triangle inequality
 		for(String algorithm: algorithms) {
 			atts.addElement(new Attribute(algorithm + " Time"));// Numeric
 			atts.addElement(new Attribute(algorithm + " Solution"));// Numeric
@@ -61,6 +62,7 @@ public class Main {
 				int nodeTotal = table.listNodes().length;
 				row.setValue(1, nodeTotal);
 				int edgeTotal = getEdgeCount(table);
+				if(edgeTotal > 1000000) continue;
 				row.setValue(2, edgeTotal);
 				System.out.print('.');
 				double neighborAverage = getNeighborAverage(table);
@@ -78,7 +80,7 @@ public class Main {
 				}
 				row.setValue(3, stdDevNeighbor);
 				row.setValue(4, stdDevEdge);
-				row.setValue(5, 2 * edgeTotal / nodeTotal);
+				row.setValue(5, 2 * edgeTotal / (nodeTotal * (nodeTotal - 1)));
 	
 				System.out.print('.');
 				List<Tour> solutions = instance.getTours();
@@ -108,7 +110,7 @@ public class Main {
 		// Save the new data
 		ArffSaver saver = new ArffSaver();
 		saver.setInstances(dataset);
-		String destination = "output/TSP" + new Date() + ".arff";
+		String destination = "output/TSP-meta.arff";
 		File destFile = new File(destination);
 		saver.setFile(destFile);
 		//saver.setDestination(destFile);// **not** necessary in 3.5.4 and later
